@@ -1,8 +1,28 @@
 import re
+import math
 
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
+
+
+class ScrapedPosting:
+    def __init__(self, city_id, posting_time, title, price_usd, number_of_images, review_text, attributes):
+        self._city_id = city_id
+        self._posting_time = posting_time
+        self._title = title
+        self._price_usd_cents = math.round(price_usd * 100)
+        self._number_of_images = number_of_images
+        self._review_text = review_text
+        self._attributes = attributes
+
+    def insert(self, cursor):
+        posting_insert = """
+            INSERT INTO cl_posting (cl_id, city_id, posting_time, price_usd_cents, number_of_images, title,
+            description, inserted_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        cursor.execute(posting_insert, (self._city_id, self._posting_time, self._title, self._price_usd_cents,
+                                        self._number_of_images, self._review_text, self._attributes))
 
 
 def _extract_attribute_pairing(blob):
@@ -13,7 +33,7 @@ def _extract_attribute_pairing(blob):
         return matches.group(1), matches.group(2)
 
 
-def get_posting(posting_url):
+def get_posting(posting_url, city_id):
     res = requests.get(posting_url)
     soup = BeautifulSoup(res.text, 'lxml')
 
@@ -59,4 +79,4 @@ def get_posting(posting_url):
     # TODO do we want to maintain some of the hypertext aspects in the review text?
     review_text = review_section.contents[2:]
 
-    return posting_time, title, price_usd, number_of_images, attributes, review_text
+    return ScrapedPosting(posting_time, title, price_usd, number_of_images, review_text, attributes)
